@@ -25,12 +25,16 @@ def eliminate_nans(data):
             inds = data[col].isna()
             data[inds] = '0'
 
-
 def get_intimacy_score(data):
     '''
     This function takes in a dataframe and creates a feature for total bottles poured that day and applies feature to all customers for that day.
     '''
-    pass
+    conditions = (data["ordertype"]=="Promo") & (data["ProductType"]=="Wine")
+    cogs = data[conditions]
+    total_bottles_poured = cogs.groupby("CalendarDate").sum()["Quantity"]
+    return total_bottles_poured
+    # need to merge back onto main df
+    # need to normalize for non-busy days (during the week, etc)
 
 def get_dow(data):
     data["CalendarDate"] = np.array([x[:10] for x in data["OrderCompletedDate"]])
@@ -51,11 +55,13 @@ def eliminate_noise_cols(data):
     return data
 
 def get_time_periods(data):
+    ordered = data.sort_values(by=['BillCustomerNumber', 'CalendarDate'])
+    # data["DaysBetweenVisits1"] = 
+    return ordered
+
+def get_skipped_shipment(data):
+    # if no shipment went out to given customer on given date after joining
     pass
-
-
-
-
 
 
 
