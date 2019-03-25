@@ -98,7 +98,42 @@ intimacy_score
 
 Numerical score indicating how relaxed the tasting room was at the time of club sign-up. Inverse of total amount of ```SamplesPoured``` value in ```BillFirstName```
 
+```
+bottle_count
+```
+
+Volume of wine purchased and consumed by club member.
+
 
 **Challenges**
 
 Potential challenges might include leakage as time-based data is central to this project. There may also exist a survivorship bias where are core data is comprised only of people who have continued to engage with the winery and have not churned.
+
+**Defining the Target**
+
+A club member has churned if...
+
+**Model**
+
+For a first model, I will predict a club member to churn after the mean membership length has elapsed. As this is a classification problem, I will initially use a logistic regression classifier along this one feature to start.
+
+```
+avg_membership_length
+```
+
+Classification feature with 0 indicating club member has not hit mean membership duration (and we classify is still a member) and 1 indicating club member has hit mean membership duration (and we classify as no longer a member).
+
+**Model Evaluation**
+
+I will evaluate the robustness of my model by plotting a ROC curve and evaluating the resulting AUC score.
+
+Of key importance for evaluation will be our profit curve. For now, I will assume the following values:
+
+| Profit Curve Outcomes | Actual Positive      | Actual Negative  |
+| :-------------: |:-------------:| :----:|
+| Predicted Positive  | Next shipment revenue - (Cost of intervention (time, discount)) | -(Cost of intervention (time, discount)) |
+| Predicted Negative  | | |
+
+
+
+
