@@ -50,6 +50,7 @@ class ChurnModel:
     def fit_gradient_boosted_forest(self,df,n_estimators=100,learning_rate=1):
         X = df[self.columns].values
         y = df["Target"].astype(int)
+        
         self.model = GradientBoostingClassifier(n_estimators=n_estimators, max_depth=4,
                                     learning_rate=learning_rate, loss='exponential',
                                     random_state=64)
