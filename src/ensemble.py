@@ -19,7 +19,7 @@ class EnsembleChurnModel:
     # Split customers into group A or B (how many distinct clusters?)
 
     def split_customers(self,df,n=2):
-
+        pass
 
     # If customer clustered into group A
 

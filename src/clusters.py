@@ -70,5 +70,13 @@ class KMeans:
         sse = 0
         for i in range(len(self.X)):
             center = self.y[i]
-            sse += self.calc_convergence_dist(self.X, self.centers[self.y[i]])
+            sse += self.calc_convergence_dist(self.X[i], self.centers[center])
         return sse
+    
+    # def get_k_dataframes(self):
+    #     X_ks = []
+    #     for i in range(self.k):
+    #         mask = np.argwhere(self.y==i)
+    #         X_k = self.X[mask,:]
+    #         X_ks.append(X_k)
+    #     return X_ks

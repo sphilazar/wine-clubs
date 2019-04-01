@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import roc_curve,roc_auc_score
 from  sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
+# from sklearn.preprocessing import StandardScaler
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -30,6 +31,9 @@ class ChurnModel:
         '''
         X = df[self.columns].values
         y = df["Target"].values.astype(int)
+        
+
+
         # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
         model = LogisticRegression(penalty='l1')
         self.model = model

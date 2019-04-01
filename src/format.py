@@ -53,12 +53,14 @@ def clean_data():
     path = '../order_history.csv'
     data = pd.read_csv(path)
 
-    data["Total"] = data["Quantity"] * data["Price"]
+    # Log dollar amounts
+
+    data["Total"] = data["Quantity"] * [np.log(x) if x > 0 else 0 for x in data["Price"]]
     customer_orders = data.groupby("Customer Number").sum()[["Quantity","Total"]]
 
     customer_orders = customer_orders[customer_orders["Quantity"]!=0]
     customer_orders["ASP"] = customer_orders["Total"] / customer_orders["Quantity"]
-
+    
     clubs = clubs.merge(customer_orders,how="left",left_on="Customer Number",right_on="Customer Number") # Note there will be NaNs left
     
     # Eliminate NaNs
@@ -130,6 +132,10 @@ def clean_data():
     clubs["Quarter Case"] = ((clubs["Club Tier"]=="3-Bottle") | (clubs["Club Tier"]=="3-Bottle (Industry)")).astype(int)
     clubs["Half Case"] = (clubs["Club Tier"]=="6-Bottle").astype(int)
     clubs["Full Case"] = (clubs["Club Tier"]=="12-Bottle").astype(int)
+
+   # TRY taking log of Last Order Amount
+
+    clubs["Log Last Order Amount"] = [np.log(x) if x > 0 else 0 for x in clubs["Last Order Amount"]]
 
     return clubs
 
