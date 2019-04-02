@@ -135,7 +135,7 @@ def clean_data():
 
    # TRY taking log of Last Order Amount
 
-    clubs["Log Last Order Amount"] = [np.log(x) if x > 0 else 0 for x in clubs["Last Order Amount"]]
+   #  clubs["Log Last Order Amount"] = [np.log(x) if x > 0 else 0 for x in clubs["Last Order Amount"]]
 
     return clubs
 

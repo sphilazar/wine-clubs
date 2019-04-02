@@ -11,52 +11,85 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 
 class EnsembleChurnModel:
-    def __init__(self,columns):
+    def __init__(self,columns,Xs,ys):
         self.model = None
         self.columns = columns
-        self.labels = None
+        self.labels = []
+        self.Xs = Xs
+        self.ys = ys
+        self.n_models = len(self.Xs)
+        self.log_models = []
+        self.rf_models = []
+        self.boosted_models = []
 
-    # Split customers into group A or B (how many distinct clusters?)
-
-    def split_customers(self,df,n=2):
-        pass
-
-    # If customer clustered into group A
-
-    def fit_model_A(self,df):
+    def fit_models(self):
         '''
         Logistic regression across multiple variables
         '''
-        X = df[self.columns].values
-        y = df["Target"].values.astype(int)
-        # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
-        model = LogisticRegression(penalty='l1')
-        self.model = model
-        self.model.fit(X,y)
+        for n in range(self.n_models):
+            X = self.Xs[n][self.columns].values
+            y = self.ys[n].values.astype(int)
+            # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
 
-    # If customer clustered into group B
+            if y.sum() == 0:
+                self.log_models.append(None)
+                self.rf_models.append(None)
+                self.boosted_models.append(None)
 
-    def fit_model_B(self,df):
-        '''
-        Logistic regression across multiple variables
-        '''
-        X = df[self.columns].values
-        y = df["Target"].values.astype(int)
-        # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
-        model = LogisticRegression(penalty='l1')
-        self.model = model
-        self.model.fit(X,y)
+            else:            
+                log_model = LogisticRegression(penalty='l1')
+                log_model.fit(X,y)
+                self.log_models.append(log_model)
+
+                rf_model = RandomForestClassifier()
+                rf_model.fit(X,y)
+                self.rf_models.append(rf_model)
+
+                boosted_model = GradientBoostingClassifier(n_estimators=100, max_depth=4,
+                                        learning_rate=1, loss='exponential',
+                                        random_state=64)
+                boosted_model.fit(X,y)
+                self.boosted_models.append(boosted_model)
+                
 
     # How to reconcile A predictions/ B predictions? Mask customers 
 
-    def get_predictions(self,df_test,df_train):
-        X_test = df_test[self.columns].values
-        self.labels = df_test["Target"].values.astype(int) #y_test
-        X_train = df_train[self.columns].values
-        y_train = df_train["Target"].values.astype(int)
+    def get_predictions(self,df_tests,df_trains):
+        best_models = []
+        for n in range(self.n_models):
+            X_test = df_tests[n][self.columns].values
+            self.labels.append(df_tests[n]["Target"].values.astype(int)) #y_test
+            X_train = df_trains[n][self.columns].values
+            y_train = df_trains[n]["Target"].values.astype(int)
 
-        yhat = self.model.predict(X_test)
-        probas = self.model.predict_proba(X_test)
-        score = self.model.score(X_test,self.labels)
-        cv_scores = cross_val_score(self.model,X_train,y_train,cv=5)
-        return yhat,probas,score,cv_scores
+            best_model_cv = []
+            model_results = []
+
+            yhat = self.log_models[n].predict(X_test)
+            probas = self.log_models[n].predict_proba(X_test)
+            score = self.log_models[n].score(X_test,self.labels)
+            cv_score = np.array( cross_val_score(self.log_models[n],X_train,y_train,cv=5) ).mean()
+
+            best_model_cv.append(cv_score)
+            model_results.append( (yhat,probas,score,cv_score) )
+
+            yhat = self.rf_models[n].predict(X_test)
+            probas = self.rf_models[n].predict_proba(X_test)
+            score = self.rf_models[n].score(X_test,self.labels)
+            cv_score = np.array( cross_val_score(self.rf_models[n],X_train,y_train,cv=5) ).mean()
+
+            best_model_cv.append(cv_score)
+            model_results.append( (yhat,probas,score,cv_score) )
+            
+            yhat = self.boosted_models[n].predict(X_test)
+            probas = self.boosted_models[n].predict_proba(X_test)
+            score = self.boosted_models[n].score(X_test,self.labels)
+            cv_score = np.array( cross_val_score(self.boosted_models[n],X_train,y_train,cv=5) ).mean()
+
+            best_model_cv.append(cv_score)
+            model_results.append( (yhat,probas,score,cv_score) )
+
+            best_model = np.argmax(best_model_cv)
+            best_models.append( model_results[best_model] )
+
+        return best_models
