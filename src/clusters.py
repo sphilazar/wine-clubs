@@ -20,7 +20,7 @@ class KMeans:
         self.ensemble_ys = []
     
     def assign_test_clusters(self,df_test):
-        
+
         test_clusters = []
         for x in df_test[self.columns].values:
             distances = []
@@ -30,12 +30,11 @@ class KMeans:
         
         for cluster in range(self.k):
             indices = np.argwhere(np.array(test_clusters)==cluster)
-            ensemble_X = df_test[self.columns].iloc[indices]
-            ensemble_y = df_test["Target"].iloc[indices]
+            ensemble_X = df_test[self.columns].iloc[indices.ravel()]
+            ensemble_y = df_test["Target"].iloc[indices.ravel()]
             self.ensemble_Xs.append(ensemble_X)
             self.ensemble_ys.append(ensemble_y)
         
-
     def get_clusters(self):
         for i in range(self.k):
             mask = np.argwhere(self.y==i).ravel()

@@ -21,6 +21,8 @@ class EnsembleChurnModel:
         self.log_models = []
         self.rf_models = []
         self.boosted_models = []
+        self.best_models = None
+        self.cv_scores = []
 
     def fit_models(self):
         '''
@@ -51,45 +53,59 @@ class EnsembleChurnModel:
                 boosted_model.fit(X,y)
                 self.boosted_models.append(boosted_model)
                 
-
     # How to reconcile A predictions/ B predictions? Mask customers 
 
-    def get_predictions(self,df_tests,df_trains):
+    def get_predictions(self,df_tests,test_labels):
         best_models = []
         for n in range(self.n_models):
             X_test = df_tests[n][self.columns].values
-            self.labels.append(df_tests[n]["Target"].values.astype(int)) #y_test
-            X_train = df_trains[n][self.columns].values
-            y_train = df_trains[n]["Target"].values.astype(int)
+            self.labels.append(test_labels[n].values.astype(int)) #y_test
+            X_train = self.Xs[n][self.columns].values
+            y_train = self.ys[n].values.astype(int)
 
+            models = []
             best_model_cv = []
             model_results = []
 
+            models.append(self.log_models[n])
             yhat = self.log_models[n].predict(X_test)
+            print(X_test.shape)
             probas = self.log_models[n].predict_proba(X_test)
-            score = self.log_models[n].score(X_test,self.labels)
+            score = self.log_models[n].score(X_test,self.labels[n]) # y first?
             cv_score = np.array( cross_val_score(self.log_models[n],X_train,y_train,cv=5) ).mean()
 
             best_model_cv.append(cv_score)
             model_results.append( (yhat,probas,score,cv_score) )
 
+            models.append(self.rf_models[n])
             yhat = self.rf_models[n].predict(X_test)
             probas = self.rf_models[n].predict_proba(X_test)
-            score = self.rf_models[n].score(X_test,self.labels)
+            score = self.rf_models[n].score(X_test,self.labels[n])
             cv_score = np.array( cross_val_score(self.rf_models[n],X_train,y_train,cv=5) ).mean()
 
             best_model_cv.append(cv_score)
             model_results.append( (yhat,probas,score,cv_score) )
             
+            models.append(self.boosted_models[n])
             yhat = self.boosted_models[n].predict(X_test)
             probas = self.boosted_models[n].predict_proba(X_test)
-            score = self.boosted_models[n].score(X_test,self.labels)
+            score = self.boosted_models[n].score(X_test,self.labels[n])
             cv_score = np.array( cross_val_score(self.boosted_models[n],X_train,y_train,cv=5) ).mean()
 
             best_model_cv.append(cv_score)
             model_results.append( (yhat,probas,score,cv_score) )
 
             best_model = np.argmax(best_model_cv)
-            best_models.append( model_results[best_model] )
+            best_models.append( models[best_model] )
+            self.cv_scores.append(best_model_cv[best_model])
 
-        return best_models
+        self.best_models = best_models
+        return self.best_models
+
+    def score(self):
+        weighted_score = 0
+        n_data_points = 0
+        for i in range(len(self.ys)):
+            n_data_points += self.ys[i].shape[0]
+            weighted_score += self.ys[i].shape[0] * self.cv_scores[i]
+        return weighted_score / n_data_points

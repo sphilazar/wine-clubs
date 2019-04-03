@@ -33,7 +33,6 @@ class ChurnModel:
         y = df["Target"].values.astype(int)
         
 
-
         # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
         model = LogisticRegression(penalty='l1')
         self.model = model
@@ -109,7 +108,6 @@ class ChurnModel:
         plt.title('ROC curve for wine club churn')
 
         return auc,np.array(TPRs), np.array(FPRs), np.array(Ts)
-
 
 import pickle
 
