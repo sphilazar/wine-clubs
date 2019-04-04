@@ -69,7 +69,6 @@ class EnsembleChurnModel:
 
             models.append(self.log_models[n])
             yhat = self.log_models[n].predict(X_test)
-            print(X_test.shape)
             probas = self.log_models[n].predict_proba(X_test)
             score = self.log_models[n].score(X_test,self.labels[n]) # y first?
             cv_score = np.array( cross_val_score(self.log_models[n],X_train,y_train,cv=5) ).mean()

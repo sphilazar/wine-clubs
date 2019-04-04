@@ -28,6 +28,8 @@ format.get_test_train_set(clubs)
 clubs_train = pd.read_csv('../data/train_set.csv')
 clubs_test = pd.read_csv('../data/test_set.csv')
 
+print(clubs_train.head())
+
 cols = ['Age','ASP','Club Length','Quarter Case','isPickup','Time Since Last Order','Orders Total','Last Order Amount']
 cm = ChurnModel(cols)
 
@@ -110,3 +112,8 @@ Ensemble Modeling
 '''
 ecm = EnsembleChurnModel(cols,km.clusters,km.targets)
 ecm.fit_models()
+print(ecm.score()) #0.90
+
+'''
+Customer lifetime regression
+'''
