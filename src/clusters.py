@@ -3,6 +3,12 @@ import pandas as pd
 import random
 np.random.seed(seed=14)
 
+from mpl_toolkits.mplot3d import Axes3D 
+
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib import pyplot as plt
+
 class KMeans:
     # This should return indices of customers in df who need a certain model in the ensemble applied to them
     def __init__(self,df,cols,k=6):
@@ -17,16 +23,20 @@ class KMeans:
         self.targets = []
         self.ensemble_Xs = []
         self.ensemble_ys = []
+        self.df_test = None
+        self.clusters_test = None
     
     def assign_test_clusters(self,df_test):
 
+        self.df_test = df_test
         test_clusters = []
         for x in df_test[self.columns].values:
             distances = []
             for center in self.centers:
                 distances.append( np.linalg.norm(x-center) )
             test_clusters.append( np.array(distances).argmin() )
-        
+            self.clusters_test = test_clusters
+
         for cluster in range(self.k):
             indices = np.argwhere(np.array(test_clusters)==cluster)
             ensemble_X = df_test[self.columns].iloc[indices.ravel()]
@@ -109,6 +119,39 @@ class KMeans:
             sse += self.calc_convergence_dist(self.X[i], self.centers[center])
         return sse
     
+    def add_jitter(self,cols):
+        # Add Jitter
+        df_plot = self.df_test
+        for col in cols:
+            if len(self.df_test[col].unique()) == 2:
+                rands = random.sample( random.uniform(-0.25,0.25) , len(df_plot) )
+                df_plot[col] = [(x + y) for x,y in zip(df_plot[col],rands)]
+                
+        return df_plot
+
+
+
+    def plot_clusters(self,cols):
+
+        df_plot = self.df_test
+        # df_plot = self.add_jitter(cols)
+    
+
+        fig = plt.figure()
+        ax = Axes3D(fig)
+
+        xs = df_plot[cols[0]]
+        ys = df_plot[cols[1]]
+        zs = df_plot[cols[2]]
+
+        print(xs.shape)
+        map_to_clusters = np.array(self.clusters_test)
+        ax.scatter(xs, ys, zs,c=map_to_clusters)
+
+        ax.set_xlabel(cols[0])
+        ax.set_ylabel(cols[1])
+        ax.set_zlabel(cols[2])
+
     # def get_k_dataframes(self):
     #     X_ks = []
     #     for i in range(self.k):

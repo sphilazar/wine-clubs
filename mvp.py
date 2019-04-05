@@ -2,10 +2,15 @@
 '''
 To Do:
 
-Make ROCs for all models
-Make plot of clusters
-
-
+Make ROCs for all models - done
+Make plot of clusters - done
+Average Transaction --> Order Total --> LTV - done
+ASP --> Order Total --> LTV - done
+Make sure generlizable for rest of POS data
+Make sure generalizable for other wineries
+kNN?
+Calculate Recall, Precision scores for model
+Check F1 scores
 '''
 
 import pandas as pd
@@ -20,6 +25,8 @@ from src.clusters import KMeans
 from src.ensemble import EnsembleChurnModel
 from src.customerlifecycle import OrderAnalysis
 
+from mpl_toolkits.mplot3d import Axes3D 
+
 import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
@@ -27,6 +34,7 @@ from matplotlib import pyplot as plt
 import csv
 import random
 import pickle
+
 
 '''
 Clean up data, produce DataFrame
@@ -52,13 +60,17 @@ clubs_test = clubs_test.merge(prior_orders,how="left",left_on="Customer ID",righ
 clubs_train = clubs_train[~clubs_train["Prior Orders"].isna()]
 clubs_test = clubs_test[~clubs_test["Prior Orders"].isna()]
 
+print(clubs_test.sample(5))
+
+
 # print(prior_orders['Prior Orders'].unique())
 # print(clubs_train.head())
 
 '''
 Logistic
 '''
-cols = ['Age','ASP','Quarter Case','Half Case',  'Full Case','isPickup','Last Order Amount','Average Transaction','Prior Orders']
+
+cols = ['Age','Quarter Case','Half Case',  'Full Case','isPickup','Last Order Amount','Average Transaction','Prior Orders']
 cm = ChurnModel(cols)
 
 cm.fit_a_model(clubs_train)
@@ -70,9 +82,9 @@ print(cm.model.coef_)
 print(score)
 print(cv_scores)
 
-auc = cm_test.get_roc_curve(probas[:,1])
-print("AUC Logistic: ",auc[0])
-plt.show()
+# auc = cm_test.get_roc_curve(probas[:,1])
+# print("AUC Logistic: ",auc[0])
+# plt.show()
 
 '''
 Random Forest
@@ -86,14 +98,15 @@ yhat,probas,score,cv_scores = cm_test.get_predictions(clubs_test,clubs_train)
 print(score)
 print(cv_scores)
 
-auc = cm_test.get_roc_curve(probas[:,1])
-print("AUC RF: ",auc[0])
-plt.show()
+# auc = cm_test.get_roc_curve(probas[:,1])
+# print("AUC RF: ",auc[0])
+# plt.show()
+
 '''
 GradientBoostingClassifier
 '''
-# cols = ['Age','ASP','Quarter Case','isPickup','Last Order Amount','Average Transaction']
-cols = ['Age','ASP','Quarter Case','Half Case', 'Full Case','isPickup','Last Order Amount','Average Transaction','Prior Orders']
+# cols = ['Age',,'Quarter Case','isPickup','Last Order Amount','Average Transaction']
+cols = ['Age','Quarter Case','Half Case', 'Full Case','isPickup','Last Order Amount','Average Transaction','Prior Orders']
 dropcols = ['Club Tier','Cancel Reason','Customer ID','State', 'Zip','Club Status','Above Mean Club Length']
 cols_gd = list(set(list(clubs_train.columns)) - set(dropcols))
 
@@ -110,9 +123,9 @@ yhat,probas,score,cv_scores = cm_test.get_predictions(clubs_test_gd,clubs_train_
 print(score)
 print(cv_scores)
 
-auc = cm_test.get_roc_curve(probas[:,1])
-print("AUC GB: ",auc[0])
-plt.show()
+# auc = cm_test.get_roc_curve(probas[:,1])
+# print("AUC GB: ",auc[0])
+# plt.show()
 
 '''
 Partial Dependence Plots
@@ -132,8 +145,8 @@ fig, axs = plot_partial_dependence(cm.model, clubs_train_gd[cols].values, featur
                                    feature_names=clubs_train_gd[cols].columns,
                                    n_jobs=3, grid_resolution=50,figsize=(14,9))
 
-# cols = ['Age','ASP','Quarter Case','isPickup','Last Order Amount','Average Transaction']
-cols = ['Age','ASP','Quarter Case','Half Case',  'Full Case','isPickup','Last Order Amount','Average Transaction','Prior Orders']
+# cols = ['Age',,'Quarter Case','isPickup','Last Order Amount','Average Transaction']
+cols = ['Age','Quarter Case','Half Case','Full Case','isPickup','Last Order Amount','Average Transaction','Prior Orders']
 cluster_cols = ["Customer ID","Target"]+cols
 
 cluster_df = clubs_train[cluster_cols].reset_index()
@@ -159,9 +172,14 @@ Elbow
 '''
 Clustering
 '''
-km = KMeans(cluster_df,cluster_cols,k=6)
+km = KMeans(cluster_df,cluster_cols,k=3)
 km.fit(min_converge=1,max_iter=4) # min_converge=1, max_iter=4
 km.assign_test_clusters(cluster_df_test)
+plot_cols = ['Quarter Case','Average Transaction','Prior Orders']
+
+km.plot_clusters(plot_cols)
+
+plt.show()
 
 '''
 Ensemble Modeling
@@ -169,6 +187,6 @@ Ensemble Modeling
 ecm = EnsembleChurnModel(cols,km.clusters,km.targets)
 ecm.fit_models()
 ecm.get_predictions(km.ensemble_Xs,km.ensemble_ys)
-print(ecm.score()) #0.80
+# print(ecm.score()) #0.80
 
 

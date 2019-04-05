@@ -1,78 +1,96 @@
 import pandas as pd
 import numpy as np
 import string
+import csv
+import random
+random.seed(32)
+
+TEST_SPLIT_RATIO = 0.1
+
+# How should I handle importing data?
+CLUB_PATH = '../club_members.csv'
+CUSTOMER_PATH = '../customer_list.csv'
+ORDER_PATH = '../order_history.csv'
 
 def clean_data():
-    path = '../club_members.csv'
-    clubs = pd.read_csv(path)
+   clubs = pd.read_csv(CLUB_PATH)
 
-    path = '../customer_list.csv'
-    customers = pd.read_csv(path)
+   # This filters out to start of POS data: newbies / oldies
+   clubs["Join Year"] = [int(x[-2:]) for x in clubs["Signup Date"]]
+   clubs = clubs[clubs["Join Year"] > 15]
 
-    # Pick important features in Clubs
-    nans = ["Club Status","Bill Birth Date","Ship Birth Date","Ship City","Ship State Code","Ship Zip","Pickup Location","Cancel Date","Cancel Reason","Last Processed Date","Last Order Date"]
-    delete = ["Bill City","Bill State Code","Bill Zip"]
-    keep = ["Club","Customer Number","Signup Date","Shipments (note that these don't necessarily mean orders)","Lifetime Value"]
+   # Won't be needed in a bit
+   # clubs = clubs[clubs["Customer Number"]<=17927]
 
-    clubs = clubs[nans + keep]
 
-    # Create features
-    clubs["ltv"] = [float("".join((ltv[1:].split(","))) ) for ltv in clubs["Lifetime Value"]]
-    clubs.loc[clubs["Club Status"].isna() & clubs["Cancel Date"].isna(),"Club Status"] = "Active"
-    clubs.loc[clubs["Club Status"].isna() & ~clubs["Cancel Reason"].isna(),"Club Status"] = "Cancelled"
-    clubs.loc[ (clubs["Bill Birth Date"].isna() & ~clubs["Ship Birth Date"].isna()) , "Bill Birth Date"] = clubs["Ship Birth Date"]
-    clubs.loc[ (~clubs["Bill Birth Date"].isna() & clubs["Ship Birth Date"].isna()) , "Ship Birth Date"] = clubs["Bill Birth Date"]
-    clubs.loc[ (clubs["Bill Birth Date"].isna() ),"Bill Birth Date" ] = str(1/1/20)
-    clubs["age"] = np.array( [(2019-int("19" + "".join(bd[-2::]))) for bd in clubs[~clubs["Bill Birth Date"].isna()]["Bill Birth Date"] ])
-    clubs.loc[(clubs["age"]==99),"age"] = clubs.loc[~(clubs["age"]==99),"age"].values.mean()
-    clubs.loc[clubs["Ship City"].isna(),"Ship City"] = "Calistoga"
-    clubs.loc[clubs["Ship State Code"].isna(),"Ship State Code"] = "CA"
-    clubs.loc[clubs["Ship Zip"].isna(),"Ship Zip"] = "94515"
-    clubs["isPickup"] = ~clubs["Pickup Location"].isna()
+   # Only use clubs with birthday
+   clubs = clubs[~clubs["Bill Birth Date"].isna()]
 
-    # Convert dates to time periods (float in years)
+   customers = pd.read_csv(path)
 
-    clubs["cancel"] = np.array([str(cancel).split("/")[0::2] for cancel in clubs["Cancel Date"]])
-    clubs["signup"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Signup Date"]]
-    clubs["clubLength"] = [(int(end[1]) - int(start[1])) +  ((( (int(end[0])+12) - int(start[0]) ) % 12  ) / 12 ) if (len(end)==2) else (19 - int(start[1])) +  ((( (3+12) - int(start[0]) ) % 12  ) / 12 ) for end,start in zip(clubs["cancel"],clubs["signup"]) ]
+   # Pick important features in Clubs
+   nans = ["Club Status","Bill Birth Date","Ship Birth Date","Ship City","Ship State Code","Ship Zip","Pickup Location","Cancel Date","Cancel Reason","Last Processed Date","Last Order Date"]
+   delete = ["Bill City","Bill State Code","Bill Zip"]
+   keep = ["Club","Customer Number","Signup Date","Shipments (note that these don't necessarily mean orders)","Lifetime Value"]
 
-    clubs["last_order"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Last Order Date"]]
-    clubs["last_process"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Last Processed Date"]]
+   clubs = clubs[nans + keep]
 
-    # If Last Order is nan, they have just signed up. Assume 0 Time since last order if new club member
-    # Not if "Time Since Last Order" is < 0,  member ordered AFTER cancellation
-    clubs["Time Since Last Order"] = [(int(end[1]) - int(start[1])) +  ((( (int(end[0])+12) - int(start[0]) ) % 12  ) / 12 ) if ((len(end)==2) & (len(start)==2)) else 0 for end,start in zip(clubs["cancel"],clubs["last_order"]) ]
+   # Create features
+   clubs["ltv"] = [float("".join((ltv[1:].split(","))) ) for ltv in clubs["Lifetime Value"]]
+   clubs.loc[clubs["Club Status"].isna() & clubs["Cancel Date"].isna(),"Club Status"] = "Active"
+   clubs.loc[clubs["Club Status"].isna() & ~clubs["Cancel Reason"].isna(),"Club Status"] = "Cancelled"
+   clubs.loc[ (clubs["Bill Birth Date"].isna() & ~clubs["Ship Birth Date"].isna()) , "Bill Birth Date"] = clubs["Ship Birth Date"]
+   clubs.loc[ (~clubs["Bill Birth Date"].isna() & clubs["Ship Birth Date"].isna()) , "Ship Birth Date"] = clubs["Bill Birth Date"]
+   clubs.loc[ (clubs["Bill Birth Date"].isna() ),"Bill Birth Date" ] = str(1/1/20)
+   clubs["age"] = np.array( [(2019-int("19" + "".join(bd[-2::]))) for bd in clubs[~clubs["Bill Birth Date"].isna()]["Bill Birth Date"] ])
+   clubs.loc[(clubs["age"]==99),"age"] = clubs.loc[~(clubs["age"]==99),"age"].values.mean()
+   clubs.loc[clubs["Ship City"].isna(),"Ship City"] = "Calistoga"
+   clubs.loc[clubs["Ship State Code"].isna(),"Ship State Code"] = "CA"
+   clubs.loc[clubs["Ship Zip"].isna(),"Ship Zip"] = "94515"
+   clubs["isPickup"] = ~clubs["Pickup Location"].isna()
 
-    # Merge Customers onto Clubs
+   # Convert dates to time periods (float in years)
 
-    clubs = clubs.merge(customers[['Customer No.','Number Of Transactions','Lifetime Value','Last Order Date','Last Order Amount']],how="left",left_on="Customer Number",right_on="Customer No.")
-    clubs["Last Order Amount"] = [float("".join(ltv[1:].split(","))) if not (ltv[0] == "(") else float("".join(ltv[2:-1].split(",")))  for ltv in clubs["Last Order Amount"]]
+   clubs["cancel"] = np.array([str(cancel).split("/")[0::2] for cancel in clubs["Cancel Date"]])
+   clubs["signup"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Signup Date"]]
+   clubs["clubLength"] = [(int(end[1]) - int(start[1])) +  ((( (int(end[0])+12) - int(start[0]) ) % 12  ) / 12 ) if (len(end)==2) else (19 - int(start[1])) +  ((( (3+12) - int(start[0]) ) % 12  ) / 12 ) for end,start in zip(clubs["cancel"],clubs["signup"]) ]
 
-    # Aggregate totals by Customer ID
+   clubs["last_order"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Last Order Date"]]
+   clubs["last_process"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Last Processed Date"]]
 
-    path = '../order_history.csv'
-    data = pd.read_csv(path)
+   # If Last Order is nan, they have just signed up. Assume 0 Time since last order if new club member
+   # Not if "Time Since Last Order" is < 0,  member ordered AFTER cancellation
+   clubs["Time Since Last Order"] = [(int(end[1]) - int(start[1])) +  ((( (int(end[0])+12) - int(start[0]) ) % 12  ) / 12 ) if ((len(end)==2) & (len(start)==2)) else 0 for end,start in zip(clubs["cancel"],clubs["last_order"]) ]
 
-    # Log dollar amounts
+   # Merge Customers onto Clubs
 
-    data["Total"] = data["Quantity"] * [np.log(x) if x > 0 else 0 for x in data["Price"]]
-    customer_orders = data.groupby("Customer Number").sum()[["Quantity","Total"]]
+   clubs = clubs.merge(customers[['Customer No.','Number Of Transactions','Lifetime Value','Last Order Date','Last Order Amount']],how="left",left_on="Customer Number",right_on="Customer No.")
+   clubs["Last Order Amount"] = [float("".join(ltv[1:].split(","))) if not (ltv[0] == "(") else float("".join(ltv[2:-1].split(",")))  for ltv in clubs["Last Order Amount"]]
 
-    customer_orders = customer_orders[customer_orders["Quantity"]!=0]
-    customer_orders["ASP"] = customer_orders["Total"] / customer_orders["Quantity"]
+   # Aggregate totals by Customer ID
+
+   data = pd.read_csv(ORDER_PATH)
+
+   # Log dollar amounts
+
+   data["Total"] = data["Quantity"] * [np.log(x) if x > 0 else 0 for x in data["Price"]]
+   customer_orders = data.groupby("Customer Number").sum()[["Quantity","Total"]]
+
+   customer_orders = customer_orders[customer_orders["Quantity"]!=0]
+   customer_orders["ASP"] = customer_orders["Total"] / customer_orders["Quantity"]
     
-    clubs = clubs.merge(customer_orders,how="left",left_on="Customer Number",right_on="Customer Number") # Note there will be NaNs left
+   clubs = clubs.merge(customer_orders,how="left",left_on="Customer Number",right_on="Customer Number") # Note there will be NaNs left
     
-    # Eliminate NaNs
+   # Eliminate NaNs
 
-    clubs.loc[clubs["Quantity"].isna(),"Quantity"] = 0
-    clubs.loc[clubs["Total"].isna(),"Total"] = 0
-    clubs.loc[clubs["ASP"].isna(),"ASP"] = 0
+   clubs.loc[clubs["Quantity"].isna(),"Quantity"] = 0
+   clubs.loc[clubs["Total"].isna(),"Total"] = 0
+   clubs.loc[clubs["ASP"].isna(),"ASP"] = 0
 
-    # Return final dataframe features for fitting
-    '''
-    #Columns before filtering
-    current_columns = ['Club Status', 'Bill Birth Date', 'Ship Birth Date', 'Ship City',
+   # Return final dataframe features for fitting
+   '''
+   #Columns before filtering
+   current_columns = ['Club Status', 'Bill Birth Date', 'Ship Birth Date', 'Ship City',
        'Ship State Code', 'Ship Zip', 'Pickup Location', 'Cancel Date',
        'Cancel Reason', 'Last Processed Date', 'Last Order Date_x', 'Club',
        'Customer Number', 'Signup Date',
@@ -81,16 +99,16 @@ def clean_data():
        'clubLength', 'Customer No.', 'Number Of Transactions',
        'Lifetime Value_y', 'Last Order Date_y', 'Last Order Amount',
        'Quantity', 'Total','ASP']
-    '''
-    clubs = clubs[['Club Status',
+   '''
+   clubs = clubs[['Club Status',
        'Ship State Code', 'Ship Zip',
        'Cancel Reason', 'Club',
        'Customer Number',
        "Shipments (note that these don't necessarily mean orders)", 'ltv', 'age', 'isPickup',
        'clubLength', 'Number Of Transactions', 'Last Order Amount',"Time Since Last Order",'Quantity', 'Total','ASP']]
 
-    # Change names for clarification
-    clubs.columns = ['Club Status',
+   # Change names for clarification
+   clubs.columns = ['Club Status',
        'State', 'Zip',
        'Cancel Reason', 'Club Tier',
        'Customer ID',
@@ -98,91 +116,89 @@ def clean_data():
        'Club Length', 'Transactions', 'Last Order Amount',"Time Since Last Order",
        'Quantity', 'Orders Total','ASP']
 
-    # Change order of columns
-    clubs = clubs[['Customer ID','Club Tier','State','Zip','Age','isPickup','Transactions','Shipments',
+   # Change order of columns
+   clubs = clubs[['Customer ID','Club Tier','State','Zip','Age','isPickup','Transactions','Shipments',
        'Quantity','Orders Total','ASP','LTV',"Time Since Last Order",'Last Order Amount',
        'Club Status','Club Length','Cancel Reason']]
 
-    # Combine multiple entries on Clubs for a given Customer ID ("Switched Club Level")
+   # Combine multiple entries on Clubs for a given Customer ID ("Switched Club Level")
 
-    for clubid in clubs["Customer ID"].unique():
-        if clubs[clubs["Customer ID"]==clubid].shape[0] > 1:
-            summed = clubs[clubs["Customer ID"]==clubid].groupby("Customer ID").sum()[["Shipments","Club Length","Transactions"]]
-            clubs.loc[((clubs["Customer ID"]==clubid) & (clubs["Club Status"]=="Active")),"Club Length"] = summed.loc[clubid,"Club Length"]
-            clubs.loc[((clubs["Shipments"]==clubid) & (clubs["Club Status"]=="Active")),"Shipments"] = summed.loc[clubid,"Shipments"]
-            clubs.loc[((clubs["Transactions"]==clubid) & (clubs["Club Status"]=="Active")),"Transactions"] = summed.loc[clubid,"Transactions"]
+   for clubid in clubs["Customer ID"].unique():
+      if clubs[clubs["Customer ID"]==clubid].shape[0] > 1:
+         summed = clubs[clubs["Customer ID"]==clubid].groupby("Customer ID").sum()[["Shipments","Club Length","Transactions"]]
+         clubs.loc[((clubs["Customer ID"]==clubid) & (clubs["Club Status"]=="Active")),"Club Length"] = summed.loc[clubid,"Club Length"]
+         clubs.loc[((clubs["Shipments"]==clubid) & (clubs["Club Status"]=="Active")),"Shipments"] = summed.loc[clubid,"Shipments"]
+         clubs.loc[((clubs["Transactions"]==clubid) & (clubs["Club Status"]=="Active")),"Transactions"] = summed.loc[clubid,"Transactions"]
 
-            clubs.drop(clubs[((clubs["Customer ID"]==clubid) & (clubs["Club Status"]=="Cancelled"))].index,axis=0,inplace=True)
+         clubs.drop(clubs[((clubs["Customer ID"]==clubid) & (clubs["Club Status"]=="Cancelled"))].index,axis=0,inplace=True)
 
-    # Average transaction amount
+   # Average transaction amount
 
    #  clubs["Average Transaction"] = [ x/y if x!=0 else 0 for x,y in zip(clubs["LTV"],clubs["Transactions"])]
 
-    # Create above / below average club length feature for dumb model
+   # Create above / below average club length feature for dumb model
 
-    clubs["Above Mean Club Length"] = (clubs["Club Length"]>=clubs["Club Length"].mean()).astype(int)
+   clubs["Above Mean Club Length"] = (clubs["Club Length"]>=clubs["Club Length"].mean()).astype(int)
 
 
-    # Adjust target - more than 2 years member = 1
+   # Adjust target - more than 2 years member = 1
 
-    clubs = clubs[~((clubs["Club Status"]=="Active") & (clubs["Club Length"]<2)) ]
-    clubs["Target"] = (clubs["Club Length"] >= 2)
+   clubs = clubs[~((clubs["Club Status"]=="Active") & (clubs["Club Length"]<2)) ]
+   clubs["Target"] = (clubs["Club Length"] >= 2)
 
-    # One hot encode membership tiers
+   # One hot encode membership tiers
 
-    clubs["Quarter Case"] = ((clubs["Club Tier"]=="3-Bottle") | (clubs["Club Tier"]=="3-Bottle (Industry)")).astype(int)
-    clubs["Half Case"] = (clubs["Club Tier"]=="6-Bottle").astype(int)
-    clubs["Full Case"] = (clubs["Club Tier"]=="12-Bottle").astype(int)
+   clubs["Quarter Case"] = ((clubs["Club Tier"]=="3-Bottle") | (clubs["Club Tier"]=="3-Bottle (Industry)")).astype(int)
+   clubs["Half Case"] = (clubs["Club Tier"]=="6-Bottle").astype(int)
+   clubs["Full Case"] = (clubs["Club Tier"]=="12-Bottle").astype(int)
 
-    clubs["Average Transaction"] = [ x/y if y>0 else 0 for x,y in zip(clubs["Orders Total"],clubs
-    ["Transactions"])]
+   clubs["Average Transaction"] = [ x/y if y>0 else 0 for x,y in zip(clubs["LTV"],clubs
+   ["Transactions"])] # Changed from Orders to LTV
 
-    clubs["Age"] = np.log(clubs["Age"])
+   clubs["Age"] = np.log(clubs["Age"]) # Log of age
   
-    # Basic stats
+   clubs["ASP"] = [x/y if y>0 else 0 for x,y in zip(clubs["LTV"],clubs["Shipments"])]
 
-    mean = clubs[clubs['Club Status']=='Cancelled']['Club Length'].mean()
-    std = np.sqrt( clubs[clubs['Club Status']=='Cancelled']['Club Length'].var() )
-    print("Mean CLub Length: ",mean,"std club length: ",std)
-    left = clubs[clubs['Club Status']=="Cancelled"].count()
-    total = clubs.shape[0]
-    class_cancelled = left/total
-    print("Class balance of cancelled: ",class_cancelled)
+   # Basic stats
 
-    # What is loss function
-    # What is balance: 0.60 cancelled memberships, 0.47 subscriptions over 2 years old
+   mean = clubs[clubs['Club Status']=='Cancelled']['Club Length'].mean()
+   std = np.sqrt( clubs[clubs['Club Status']=='Cancelled']['Club Length'].var() )
+   print("Mean CLub Length: ",mean,"std club length: ",std)
+   left = clubs[clubs['Club Status']=="Cancelled"].count()
+   total = clubs.shape[0]
+   class_cancelled = left/total
+   print("Class balance of cancelled: ",class_cancelled)
 
-    length = clubs[clubs['Club Length']>=2].count()
-    length_portion = length/total
-    print("Class balance of long memberships: ",length_portion)
+   # What is loss function
+   # What is balance: 0.60 cancelled memberships, 0.47 subscriptions over 2 years old
 
-    # ROC curve, AUC better classifier
+   length = clubs[clubs['Club Length']>=2].count()
+   length_portion = length/total
+   print("Class balance of long memberships: ",length_portion)
 
-    return clubs
+   # ROC curve, AUC better classifier
+
+   return clubs
 
 
-import csv
-import random
-random.seed(32)
 
 def get_test_train_set(df):
-    TEST_SPLIT_RATIO = 0.1
-    a = np.array(df.index.tolist())
-    random.shuffle(a)
+   a = np.array(df.index.tolist())
+   random.shuffle(a)
 
-    split_index = int(len(a) * TEST_SPLIT_RATIO)
-    df_test = df.loc[a][:split_index]
-    df_train = df.loc[a][split_index:]
+   split_index = int(len(a) * TEST_SPLIT_RATIO)
+   df_test = df.loc[a][:split_index]
+   df_train = df.loc[a][split_index:]
 
-    with open('../test_set.csv', mode='w') as test:
-        clubwriter = csv.writer(test, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        clubwriter.writerow(df_test.columns)
-        for row in df_test.values:
-            clubwriter.writerow(row)
+   with open('../test_set.csv', mode='w') as test:
+      clubwriter = csv.writer(test, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+      clubwriter.writerow(df_test.columns)
+      for row in df_test.values:
+         clubwriter.writerow(row)
     
-    with open('../train_set.csv', mode='w') as train:
-        clubwriter = csv.writer(train, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        clubwriter.writerow(df_train.columns)
-        for row in df_train.values:
+   with open('../train_set.csv', mode='w') as train:
+      clubwriter = csv.writer(train, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+      clubwriter.writerow(df_train.columns)
+         for row in df_train.values:
             clubwriter.writerow(row)
     

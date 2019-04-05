@@ -99,13 +99,13 @@ class ChurnModel:
             FPRs.append(fpr)
             Ts.append(threshold)
 
-
         plt.figure()
         plt.plot(FPRs,TPRs,c='r')
         plt.plot(Ts,Ts, 'k--')
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
         plt.title('ROC curve for wine club churn')
+        plt.grid(True)
 
         return auc,np.array(TPRs), np.array(FPRs), np.array(Ts)
 
