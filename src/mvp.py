@@ -10,6 +10,7 @@ pd.set_option('display.width', 1000)
 from src import model as m
 from src.clusters import KMeans
 from src.ensemble import EnsembleChurnModel
+from src.customerlifecycle import OrderAnalysis
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -18,6 +19,21 @@ from matplotlib import pyplot as plt
 import csv
 import random
 import pickle
+
+'''
+Customer lifetime regression
+'''
+
+oa = OrderAnalysis()
+oa.get_orders()
+clubs_final = oa.get_clubs()
+oa.get_test_train_set(clubs_final)
+
+reg_clubs_train = pd.read_csv('../data/train_set.csv')
+reg_clubs_test = pd.read_csv('../data/test_set.csv')
+
+
+
 
 '''
 Clean up data, produce DataFrame
@@ -30,7 +46,7 @@ clubs_test = pd.read_csv('../data/test_set.csv')
 
 print(clubs_train.head())
 
-cols = ['Age','ASP','Club Length','Quarter Case','isPickup','Time Since Last Order','Orders Total','Last Order Amount']
+cols = ['Age','ASP','Quarter Case','isPickup','Time Since Last Order','Orders Total','Last Order Amount']
 cm = ChurnModel(cols)
 
 cm.fit_a_model(clubs_train)
@@ -41,7 +57,7 @@ yhat,probas,score,cv_scores = cm_test.get_predictions(clubs_test,clubs_train)
 
 #score
 #cv_scores
-auc = cm_test.get_roc_curve(probas[:,1])
+# auc = cm_test.get_roc_curve(probas[:,1])
 #auc[0]
 
 '''
@@ -59,7 +75,7 @@ yhat,probas,score,cv_scores = cm_test.get_predictions(clubs_test,clubs_train)
 '''
 GradientBoostingClassifier
 '''
-cols = ['Age','ASP','Club Length','Quarter Case','isPickup','Time Since Last Order','Orders Total','Last Order Amount']
+cols = ['Age','ASP','Quarter Case','isPickup','Orders Total','Last Order Amount']
 dropcols = ['Club Tier','Cancel Reason','Customer ID','State', 'Zip','Club Status','Above Mean Club Length']
 cols_gd = list(set(list(clubs_train.columns)) - set(dropcols))
 
@@ -73,6 +89,8 @@ cm_test = pickle.load(open('model.p','rb'))
 
 yhat,probas,score,cv_scores = cm_test.get_predictions(clubs_test_gd,clubs_train_gd)
 
+auc = cm_test.get_roc_curve(probas[:,1])
+print(auc[0])
 #score
 #cv_scores
 
@@ -90,11 +108,13 @@ features = list(np.array(features)[:,1])
 c = list(clubs_train_gd[cols].columns)
 features = np.arange(0,len(c))
 
-fig, axs = plot_partial_dependence(cm.model, clubs_train_gd[cols].values, features,
+fig = plt.figure()
+fig , axs = plot_partial_dependence(cm.model, clubs_train_gd[cols].values, features,
                                    feature_names=clubs_train_gd[cols].columns,
                                    n_jobs=3, grid_resolution=50,figsize=(14,9))
+fig.show()
 
-cols = ['Age','ASP','Club Length','Quarter Case','isPickup','Time Since Last Order','Orders Total','Last Order Amount']
+cols = ['Age','ASP','Quarter Case','isPickup','Time Since Last Order','Orders Total','Last Order Amount']
 cluster_cols = ["Customer ID","Target"]+cols
 
 cluster_df = clubs_train[cluster_cols].reset_index()
@@ -114,6 +134,3 @@ ecm = EnsembleChurnModel(cols,km.clusters,km.targets)
 ecm.fit_models()
 print(ecm.score()) #0.90
 
-'''
-Customer lifetime regression
-'''

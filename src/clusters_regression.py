@@ -1,7 +1,11 @@
+
 import numpy as np
 import pandas as pd
 import random
 np.random.seed(seed=14)
+
+# Continuous: clubLength
+# Cat: Target
 
 class KMeans:
     # This should return indices of customers in df who need a certain model in the ensemble applied to them
@@ -30,7 +34,7 @@ class KMeans:
         for cluster in range(self.k):
             indices = np.argwhere(np.array(test_clusters)==cluster)
             ensemble_X = df_test[self.columns].iloc[indices.ravel()]
-            ensemble_y = df_test["Target"].iloc[indices.ravel()]
+            ensemble_y = df_test["clubLength"].iloc[indices.ravel()]
             self.ensemble_Xs.append(ensemble_X)
             self.ensemble_ys.append(ensemble_y)
         
@@ -39,10 +43,10 @@ class KMeans:
             mask = np.argwhere(self.y==i).ravel()
 
             members = self.X[mask,:]
-            members_targets = self.df["Target"].values[mask]
+            members_targets = self.df["clubLength"].values[mask]
 
             cluster = pd.DataFrame(data=members,columns=self.columns,index=mask)
-            cluster_target = pd.DataFrame(data=members_targets,columns=["Target"],index=mask)
+            cluster_target = pd.DataFrame(data=members_targets,columns=["clubLength"],index=mask)
 
             self.clusters.append(cluster)
             self.targets.append(cluster_target)

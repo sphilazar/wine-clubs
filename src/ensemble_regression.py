@@ -1,10 +1,11 @@
 import numpy as np 
 import pandas as pd 
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression, Lasso
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import roc_curve,roc_auc_score
-from  sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
+from  sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.preprocessing import StandardScaler
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -18,7 +19,7 @@ class EnsembleChurnModel:
         self.Xs = Xs
         self.ys = ys
         self.n_models = len(self.Xs)
-        self.log_models = []
+        self.lin_models = []
         self.rf_models = []
         self.boosted_models = []
         self.best_models = None
@@ -33,25 +34,25 @@ class EnsembleChurnModel:
             y = self.ys[n].values.astype(int)
             # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
 
-            if y.sum() == 0:
-                self.log_models.append(None)
-                self.rf_models.append(None)
-                self.boosted_models.append(None)
 
-            else:            
-                log_model = LogisticRegression(penalty='l1')
-                log_model.fit(X,y)
-                self.log_models.append(log_model)
+            # ss = StandardScaler()
+            # ss.fit(X)
+            # X = ss.transform(X)
 
-                rf_model = RandomForestClassifier()
-                rf_model.fit(X,y)
-                self.rf_models.append(rf_model)
+            # lin_model = Lasso(alpha=1)
+            lin_model = LinearRegression()
+            lin_model.fit(X,y)
+            self.lin_models.append(lin_model)
 
-                boosted_model = GradientBoostingClassifier(n_estimators=50, max_depth=4,
-                                        learning_rate=0.2, loss='exponential',
-                                        random_state=64)
-                boosted_model.fit(X,y)
-                self.boosted_models.append(boosted_model)
+            rf_model = RandomForestRegressor()
+            rf_model.fit(X,y)
+            self.rf_models.append(rf_model)
+
+            boosted_model = GradientBoostingRegressor(n_estimators=5000, max_depth=4,
+                                    learning_rate=0.005,
+                                    random_state=64)
+            boosted_model.fit(X,y)
+            self.boosted_models.append(boosted_model)
                 
     # How to reconcile A predictions/ B predictions? Mask customers 
 
@@ -67,44 +68,45 @@ class EnsembleChurnModel:
             best_model_cv = []
             model_results = []
 
-            # If model is None, than all same class and should be predicted as such
-
-            if not self.log_models[n]:
-                # best_model_cv.append(1)
-                model_results.append( (None,None,1,1) )
-                best_models.append( None )
-                self.cv_scores.append(1)
-                continue
-
-
-            models.append(self.log_models[n])
-            yhat = self.log_models[n].predict(X_test)
-            probas = self.log_models[n].predict_proba(X_test)
-            score = self.log_models[n].score(X_test,self.labels[n]) # y first?
-            cv_score = np.array( cross_val_score(self.log_models[n],X_train,y_train,cv=5) ).mean()
+            models.append(self.lin_models[n])
+            yhat = self.lin_models[n].predict(X_test)
+            predictions = self.lin_models[n].predict(X_test)
+            score = self.lin_models[n].score(X_test,self.labels[n]) # y first?
+            cv_score = np.array( cross_val_score(self.lin_models[n],X_train,y_train,cv=5) ).mean()
 
             best_model_cv.append(cv_score)
-            model_results.append( (yhat,probas,score,cv_score) )
+            model_results.append( (yhat,predictions,score,cv_score) )
 
             models.append(self.rf_models[n])
             yhat = self.rf_models[n].predict(X_test)
-            probas = self.rf_models[n].predict_proba(X_test)
-            score = self.rf_models[n].score(X_test,self.labels[n])
+            predictions = self.rf_models[n].predict(X_test)
+            # dp = self.rf_models[n].decision_path(X_test)
+
+            # ###
+            # print(dp)
+            # score = self.rf_models[n].score(X_test,self.labels[n])
+            # ###
+
             cv_score = np.array( cross_val_score(self.rf_models[n],X_train,y_train,cv=5) ).mean()
 
             best_model_cv.append(cv_score)
-            model_results.append( (yhat,probas,score,cv_score) )
+            model_results.append( (yhat,predictions,score,cv_score) )
             
             models.append(self.boosted_models[n])
             yhat = self.boosted_models[n].predict(X_test)
-            probas = self.boosted_models[n].predict_proba(X_test)
+            predictions = self.boosted_models[n].predict(X_test)
             score = self.boosted_models[n].score(X_test,self.labels[n])
             cv_score = np.array( cross_val_score(self.boosted_models[n],X_train,y_train,cv=5) ).mean()
 
             best_model_cv.append(cv_score)
-            model_results.append( (yhat,probas,score,cv_score) )
+            model_results.append( (yhat,predictions,score,cv_score) )
 
             best_model = np.argmax(best_model_cv)
+
+            # Sanity check
+            print("Best Model (LinReg,RF,GB):"+str(best_model))
+            print("Model CVs:"+str(best_model_cv))
+
             best_models.append( models[best_model] )
             self.cv_scores.append(best_model_cv[best_model])
 
@@ -114,9 +116,7 @@ class EnsembleChurnModel:
     def score(self):
         weighted_score = 0
         n_data_points = 0
-        # print(len(self.cv_scores))
-        # print(len(self.ys))
         for i in range(len(self.ys)):
             n_data_points += self.ys[i].shape[0]
             weighted_score += self.ys[i].shape[0] * self.cv_scores[i]
-        return (weighted_score / n_data_points)
+        return weighted_score / n_data_points

@@ -72,7 +72,6 @@ def clean_data():
     # Return final dataframe features for fitting
     '''
     #Columns before filtering
-
     current_columns = ['Club Status', 'Bill Birth Date', 'Ship Birth Date', 'Ship City',
        'Ship State Code', 'Ship Zip', 'Pickup Location', 'Cancel Date',
        'Cancel Reason', 'Last Processed Date', 'Last Order Date_x', 'Club',
@@ -117,15 +116,17 @@ def clean_data():
 
     # Average transaction amount
 
-    clubs["Average Transaction"] = [ x/y if x!=0 else 0 for x,y in zip(clubs["LTV"],clubs["Transactions"])]
+   #  clubs["Average Transaction"] = [ x/y if x!=0 else 0 for x,y in zip(clubs["LTV"],clubs["Transactions"])]
 
     # Create above / below average club length feature for dumb model
 
     clubs["Above Mean Club Length"] = (clubs["Club Length"]>=clubs["Club Length"].mean()).astype(int)
 
-    # Create explicit target. 1 for churn, 0 for not
 
-    clubs["Target"] = ~((clubs["Club Status"]=="Active") | (clubs["Club Status"]=="OnHold"))
+    # Adjust target - more than 2 years member = 1
+
+    clubs = clubs[~((clubs["Club Status"]=="Active") & (clubs["Club Length"]<2)) ]
+    clubs["Target"] = (clubs["Club Length"] >= 2)
 
     # One hot encode membership tiers
 
@@ -133,11 +134,32 @@ def clean_data():
     clubs["Half Case"] = (clubs["Club Tier"]=="6-Bottle").astype(int)
     clubs["Full Case"] = (clubs["Club Tier"]=="12-Bottle").astype(int)
 
-   # TRY taking log of Last Order Amount
+    clubs["Average Transaction"] = [ x/y if y>0 else 0 for x,y in zip(clubs["Orders Total"],clubs
+    ["Transactions"])]
 
-   #  clubs["Log Last Order Amount"] = [np.log(x) if x > 0 else 0 for x in clubs["Last Order Amount"]]
+    clubs["Age"] = np.log(clubs["Age"])
+  
+    # Basic stats
+
+    mean = clubs[clubs['Club Status']=='Cancelled']['Club Length'].mean()
+    std = np.sqrt( clubs[clubs['Club Status']=='Cancelled']['Club Length'].var() )
+    print("Mean CLub Length: ",mean,"std club length: ",std)
+    left = clubs[clubs['Club Status']=="Cancelled"].count()
+    total = clubs.shape[0]
+    class_cancelled = left/total
+    print("Class balance of cancelled: ",class_cancelled)
+
+    # What is loss function
+    # What is balance: 0.60 cancelled memberships, 0.47 subscriptions over 2 years old
+
+    length = clubs[clubs['Club Length']>=2].count()
+    length_portion = length/total
+    print("Class balance of long memberships: ",length_portion)
+
+    # ROC curve, AUC better classifier
 
     return clubs
+
 
 import csv
 import random
@@ -163,6 +185,4 @@ def get_test_train_set(df):
         clubwriter.writerow(df_train.columns)
         for row in df_train.values:
             clubwriter.writerow(row)
-    
-
     

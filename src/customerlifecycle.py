@@ -169,15 +169,24 @@ class OrderAnalysis:
         clubs['Log Spending Per Year'] = [x / y if y > 0 else 0 for x,y in zip(clubs['Log Price Total'],clubs['clubLength'])]
         # clubs = clubs[~clubs['Log Spending Per Year'].isna()]
 
-
         # Get transactions
         path = '../customer_list.csv'
         customers = pd.read_csv(path)[['Customer No.','Number Of Transactions']]
+
         clubs = clubs.merge(customers,how="left",left_on="Customer Number",right_on="Customer No.")
 
+        # print(clubs.columns)
+        # print(customers.columns)
+
+        # Get ASP
+        # print(customers['Number of Transactions'])
+        
         # Finalize columns
-        cols = ['Customer Number', 'Bill Zip',  'isPickup',  'clubLength',  'Shipments' , 'Age' , 'Quarter Case',  'Half Case',  'Full Case',  'Target','Quantity','Log Spending Per Year',  'Log Price Total',  'OrderCompletedDate',  'POS Log Price Total',  'Club Log Price Total',  'Website Log Price Total', 'POS Log Price Total after',  'Club Log Price Total after',  'Website Log Price Total after',  'POS Log Price Total Before',  'Club Log Price Total Before',  'Website Log Price Total Before', 'Number Of Transactions']
+
+        cols = ['Customer Number', 'Bill Zip',  'isPickup',  'clubLength',  'Shipments' , 'Age' , 'Quarter Case',  'Half Case',  'Full Case',  'Target','Quantity','Log Spending Per Year'  ,'Log Price Total',  'OrderCompletedDate',  'POS Log Price Total',  'Club Log Price Total',  'Website Log Price Total', 'POS Log Price Total after',  'Club Log Price Total after',  'Website Log Price Total after',  'POS Log Price Total Before',  'Club Log Price Total Before',  'Website Log Price Total Before','Number Of Transactions']
         clubs = clubs[cols]
+        clubs = clubs[clubs['Target']==True] 
+        print(clubs.shape)
         # clubs.columns = ['Customer Number', 'Bill Zip','isPickup','Earliest Order Date', 'signup','clubLength' , 'Shipments',  'Age',  'Quarter Case',  'Half Case',  'Full Case',  'Target',  'Quantity',  'Log Price Total','Order Counts',  'POS Log Price Total',  'Club Log Price Total',  'Website Log Price Total',  'Log Spending Per Year',  'Customer No.',  'Number Of Transactions']
         clubs = clubs.fillna(0)
         return clubs
