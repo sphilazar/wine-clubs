@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 
 class KMeans:
     # This should return indices of customers in df who need a certain model in the ensemble applied to them
-    def __init__(self,df,cols,k=6):
+    def __init__(self,df,cols,k=3):
         self.k = k
         self.columns = cols
         self.df = df
@@ -29,7 +29,12 @@ class KMeans:
     def assign_test_clusters(self,df_test):
 
         self.df_test = df_test
+        # Eliminate outliers
+        for col in self.columns:
+            self.df_test.drop(self.df_test[col].idxmax(),inplace=True)
+
         test_clusters = []
+        # Assign each test point to closest cluster
         for x in df_test[self.columns].values:
             distances = []
             for center in self.centers:
@@ -37,6 +42,7 @@ class KMeans:
             test_clusters.append( np.array(distances).argmin() )
             self.clusters_test = test_clusters
 
+        # Prepare test clusters for ensemble modeling
         for cluster in range(self.k):
             indices = np.argwhere(np.array(test_clusters)==cluster)
             ensemble_X = df_test[self.columns].iloc[indices.ravel()]
@@ -99,7 +105,7 @@ class KMeans:
         self.centers = new_centers
         # print(self.centers)
         
-    def fit(self,min_converge=1,max_iter=5):
+    def fit(self,min_converge=0.001,max_iter=1000):
         self.convergence_dist = min_converge
         n_iter = 0
         
@@ -108,6 +114,7 @@ class KMeans:
             self.classify()
             # Update centers
             self.update_centers()
+            print(n_iter)
             n_iter += 1
         
         self.get_clusters()

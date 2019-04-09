@@ -71,7 +71,7 @@ class ChurnModel:
         cv_scores = cross_val_score(self.model,X_train,y_train,cv=5)
         return yhat,probas,score,cv_scores
 
-    def get_roc_curve(self,probabilities,n=100):
+    def get_roc_curve(self,label,probabilities,n=100):
 
         #just in case labels are 1's and 0's
         self.labels = self.labels.astype(bool)
@@ -99,13 +99,9 @@ class ChurnModel:
             FPRs.append(fpr)
             Ts.append(threshold)
 
-        plt.figure()
-        plt.plot(FPRs,TPRs,c='r')
-        plt.plot(Ts,Ts, 'k--')
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('ROC curve for wine club churn')
-        plt.grid(True)
+        plt.plot(FPRs,TPRs)
+        # plt.plot(Ts,Ts, 'k--')
+        
 
         return auc,np.array(TPRs), np.array(FPRs), np.array(Ts)
 
@@ -113,4 +109,5 @@ import pickle
 
 def get_pickle(model):
     pickle.dump(model, open('model.p', 'wb'))
+
 

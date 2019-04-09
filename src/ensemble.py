@@ -76,7 +76,6 @@ class EnsembleChurnModel:
                 self.cv_scores.append(1)
                 continue
 
-
             models.append(self.log_models[n])
             yhat = self.log_models[n].predict(X_test)
             probas = self.log_models[n].predict_proba(X_test)
