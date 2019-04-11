@@ -137,19 +137,22 @@ The scores of this model were as follows:
 
 Gradient boosting classifier achieved higher accuracy metrics than both the random forest classifier or the logistic regression models. Most notably, gradient boosting appeared to be the most versatile and reliable model for producing high shares of true positives relative to false positives, as is indicated by the below ROC Curve. 
 
-
-
-
+![alt text](https://github.com/sphilazar/wine-clubs/blob/master/images/ROC_Curve.png "ROC Curves")
 
 
 Versatility is an important consideration in a business application, as business conditions may change.
 
+### Feature Importance
+
+In terms of particular features that carried more signal:
+
+![alt text](https://github.com/sphilazar/wine-clubs/blob/master/images/PDP.png "ROC Curves")
 
 ### Profit Curve
 
 The profit curve, leveraging the corresponding confusion matrix at every probability threshold and applying our cost-benefit matrix above, shows the probability threshold for classification producing maximum profit.
 
-
+![alt text](https://github.com/sphilazar/wine-clubs/blob/master/images/Profit_Curve.png "ROC Curves")
 
 
 
