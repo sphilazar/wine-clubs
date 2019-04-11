@@ -1,139 +1,179 @@
-**Background**
+# Predicting Wine Club Subscriptions
 
-There is significant need for a winery to determine when members of their wine club (a subscription-based model in which a customer is sent either 3, 6, or 12 bottles of wine 4-5 times per year) will churn. Having this predictive power in an industry that is notoriously rooted in tradition and reluctant to adopt new technologies has serious implications for both competitive advantage in the industry and overall production volume of wines featured on club shipments. If a winery could intervene with customers who are at risk of leaving the wine club, then we might avoid increased operating costs from unhealthy inventory of perishable goods as well as lost subscription revenue, which are both consequences of reduced club memberships. If we were to know right when a member was able to churn, and perhaps the reason why, we would be able to intervene and perhaps keep that customer.
+## Phil Salazar
 
-**Data**
+### Objective
 
-Using retail sales data from 2 wineries, I propose to create a model that could predict when people will churn from a wine club. A baseline, minimum viable product model would be simply predicting a club member will churn after the mean club membership length. Current attributes present in the raw data include:
+A winery wants to determine which customers to recruit for their wine club.
 
-```
-Data columns (total 40 columns):
-OrderNumber             24 non-null int64
-OrderCompletedDate      24 non-null object
-orderstatus             24 non-null object
-ordertype               24 non-null object
-OrderCompletedDate.1    24 non-null object
-BillCustomerNumber      22 non-null float64
-ShipStateCode           24 non-null object
-BillBirthDate           22 non-null object
-ShipZipCode             24 non-null int64
-BillFirstName           24 non-null object
-BillLastName            24 non-null object
-BillCompany             17 non-null object
-BillAddress             24 non-null object
-BillAddress2            0 non-null float64
-BillCity                24 non-null object
-BillZipCode             24 non-null int64
-BillPhone               22 non-null object
-BillEmail               24 non-null object
-isPickup                24 non-null bool
-ShipBirthDate           22 non-null object
-ShipFirstName           24 non-null object
-ShipLastName            24 non-null object
-ShipCompany             0 non-null float64
-ShipAddress             24 non-null object
-ShipAddress2            0 non-null float64
-ShipCity                24 non-null object
-ShipPhone               22 non-null object
-ShipEmail               24 non-null object
-SalesAssociate          24 non-null object
-shipmentCount           0 non-null float64
-ClubName                0 non-null float64
-clubShipmentName        0 non-null float64
-Quantity                24 non-null int64
-ProductType             24 non-null object
-OrderNotes              0 non-null float64
-ProductTitle            24 non-null object
-BrandKey                24 non-null object
-ProductSKU              24 non-null object
-originalPrice           24 non-null float64
-Price                   24 non-null float64
-```
+### What is a wine club?
 
-**Feature Engineering**
+A wine club is a subscription-based model in which a subscriber receives 3, 6, or 12 bottles of wine 4-5 times per year.
 
-A robust models will almost certainly require featurization to identify customer behavior that is a potential marker indicating a club member is more likely to churn. Paths for exploration might include:
+### Motivation
+
+A winery consistently meets quarterly new wine club subscription goals but misses quarterly revenue goals. A potential solution to this problem would be to recruit customers who are likely to remain subscribers for a longer period of time. I intend to predict customers who will stay in the winery's wine club subsciption for 2 years or more, with 2 years being a standard deviation above the mean lifespan of a subscriber. 
+
+### Data
+
+My project relies primarily on point of sale (POS) data from the winery's database management system, WineDirect. Data attributes include date, quantity, pricing, and categorization of purchases, including whether an order was completed online, as a club subscription shipment, or in the winery. 
+
+Additionally, I heavily relied on a database tracking club subscriber attributes and history.
+
+### Feature Engineering
+
+Below is a subset of features that were instrumental in prediction accuracy:
 
 ```
-skipped_shipment
-```
-Numerical value indicating how many shipments this customer has skipped. May change to categorical if not many shipments are skipped.
-
-```
-online_order_ltv
+wine_before
 ```
 
-Numerical value indicating how much money (Lifetime Value) this customer has spent in supplemental orders online outside of tasting room and club shipments.
+Integer value: the number of bottles of wine a subscriber purchased prior to signing up
 
 ```
-tasting_room_ltv
+online_total_before
 ```
 
-Numerical value indicating how much money (Lifetime Value) this customer has spent in supplemental orders online inside of tasting room and club shipments.
-
-
-```
-has_merch
-```
-
-Categorical value indicating if a customer has purchased merchandise (clothing, wine accessories) from us.
+Float value: the summed total of log(`price`) * quantity for each transaction with `order_type` as `Online`.
 
 ```
-tasting_room_visits
+winery_total_before
 ```
 
-Numerical value indicating number of visits to our tasting room
-
-
-```
-overall_ltv
-```
-
-Numerical sum of LTV (Lifetime Value) or total revenue gained from this customer.
-
+Float value: the summed total of log(`price`) * quantity for each transaction with `order_type` as `POS` (transactions occurring within winery).
 
 ```
-intimacy_score
+asp
 ```
 
-Numerical score indicating how relaxed the tasting room was at the time of club sign-up. Inverse of total amount of ```SamplesPoured``` value in ```BillFirstName```
+Float value: the mean total of log(`price`) * quantity across all transactions
 
 ```
-bottle_count
+average_transaction
 ```
 
-Volume of wine purchased and consumed by club member.
+Float value: the mean of all transaction totals.
 
+### Defining the Target
 
-**Challenges**
+A wine club subscriber belongs to the positive class so long as their subscription spanned a minimum of 2 years, regardless of if the subscription is currently active or not. 
 
-Potential challenges might include leakage as time-based data is central to this project. There may also exist a survivorship bias where are core data is comprised only of people who have continued to engage with the winery and have not churned.
+### Leakage
 
-**Defining the Target**
+So as to prevent leakage, all time-based variables are immediately eliminated, as are subscription-specific purchases in the POS data (designated by `ClubOrder` or `ClubShipment` in `order_type` field).
 
-A club member has churned if...
+### Evaluation
 
-**Model**
+I will evaluate models by the following classification metrics:
 
-For a first model, I will predict a club member to churn after the mean membership length has elapsed. As this is a classification problem, I will initially use a logistic regression classifier along this one feature to start.
+**F1, ROC - AUC score, precision, recall**
 
-```
-avg_membership_length
-```
+In particular, I will
 
-Classification feature with 0 indicating club member has not hit mean membership duration (and we classify is still a member) and 1 indicating club member has hit mean membership duration (and we classify as no longer a member).
+### Model Evaluation
 
-**Model Evaluation**
+I will evaluate the robustness of my model by plotting a Receiver Operating Characteristic (ROC) curve and evaluating the resulting Area Under Curve (AUC) score.
 
-I will evaluate the robustness of my model by plotting a ROC curve and evaluating the resulting AUC score.
+Given this model will ultimately fulfill a business application, of key importance for evaluation will be a profit curve. Note that the sensitive economics of the subscription model do not allow me to disclose the detials of the cost-benefit matrix below.
 
-Of key importance for evaluation will be our profit curve. For now, I will assume the following values:
+#### Cost-Benefit Matrix
 
-| Profit Curve Outcomes | Actual Positive      | Actual Negative  |
+| Financial Outcome for each Model Prediction | Actual Subscription 2+ Years      | Actual Subscription <2 Years  |
 | :-------------: |:-------------:| :----:|
-| Predicted Positive  | Next shipment revenue - (Cost of intervention (time, discount)) | -(Cost of intervention (time, discount)) |
-| Predicted Negative  | | |
+| Predicted Subscription 2+ Years   | Incremental shipment revenue* + Cost of intervention^ | Cost of intervention^ |
+| Predicted Subscription <2 Years  | Incremental shipment revenue* | 0 |
 
+Note that profit curves rely on the use of soft classifiers, or predicted probabilities that a given subscriber will stay for 2 years. Based on the maximum of the profit curve, we pick the optimal probability threshold for properly classifying each subscriber.
+
+###### * Note this cannot be disclosed under NDA
+###### ^ Negative value, note this cannot be disclosed under NDA
+
+### Models 
+
+#### I. Baseline Model
+
+I define a baseline model as one that predicts every subscriber to stay for 2 years or more. Since my training data has a class balance of 57% of customers who stay for 2 years or more, I would expect the precision of this baseline model to come out to 0.57.
+
+I will focus on precision as a key metric for the purpose of evaluating competing models, as precision is the measure of the proportion of the model's **true positives relative to true positives and false positives.** False positives in particualr are to be avoided, as we expect a subscriber to stay for 2 years when in reality they leave early.
+
+#### II. Logistic Regression
+
+A basic model that produces soft classifiers is logistic regression. I fit a logistic regression model using a variety of features:
+
+(TODO)
+
+This logistic regression model leveraged LASSO L1-regularuization to aid in feature selection and interpretability.
+
+The largest coefficients (and therefore most important) included:
+
+(TODO)
+
+The scores of this model were as follows:
+
+
+#### III. Random Forest Classifier
+
+I then fit a random forest classification model using a variety of features:
+
+The scores of this model were as follows:
+
+| Soft Classifier Model | ROC-AUC Score |
+|:-------------:| :----:|
+| Logistic Regression | 0.70 |
+| Random Forest | 0.79 |
+| Gradient Boosting | **0.87** |
+
+Although I will consider precision to be the ultimate indicator of model prediction performance, the AUC score is an important metric for evaluating the model versatility. As business conditions could change, 
+
+#### IV. Gradient Boosting Classifier
+
+I then fit a random forest classification model using a variety of features:
+
+Notably, this model required a low learning rate to perform well.
+
+The scores of this model were as follows:
+
+### Model Results
+
+Gradient boosting classifier achieved higher accuracy metrics than both the random forest classifier or the logistic regression models. Most notably, gradient boosting appeared to be the most versatile and reliable model for producing high shares of true positives relative to false positives, as is indicated by the below ROC Curve. 
+
+
+
+
+
+
+Versatility is an important consideration in a business application, as business conditions may change.
+
+
+### Profit Curve
+
+The profit curve, leveraging the corresponding confusion matrix at every probability threshold and applying our cost-benefit matrix above, shows the probability threshold for classification producing maximum profit.
+
+
+
+
+
+
+
+
+In this case, we see that a probability threshold of 0.51 yields the global maximum for profit.
+
+#### Confusion Matrix for Gradient Boosting Classifier at 0.51 classification threshold for test data
+
+| Test Data | Actual Subscription 2+ Years      | Actual Subscription <2 Years  |
+| :-------------: |:-------------:| :----:|
+| Predicted Subscription 2+ Years   | 46 | 14 |
+| Predicted Subscription <2 Years  | 5 | 29 |
+
+With these outcomes in mind, **our model produces a precision score of 0.77, which is 20 points higher than the 0.57 precision score of our baseline model.**
+
+### Conclusion
+
+**Good predictors of club length:** average sale price (ASP) (affinity for premium wines), number of bottles purchased prior to signing up (higher implicit value of being in wine club), average transaction (spending power).
+
+### Next Steps
+
+Validate results on complete winery dataset, generalize model for other wineries in portfolio. Predict continuous targets: club subscription lifespan, club subscription lifetime value ($).
 
 
 

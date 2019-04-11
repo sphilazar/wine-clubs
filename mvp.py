@@ -288,15 +288,18 @@ def get_feature_importances(model_class):
     # make importances relative to max importance
     feature_importance = 100.0 * (feature_importance / feature_importance.max())
     sorted_idx = np.argsort(feature_importance)
-    pos = np.arange(sorted_idx.shape[0]) + .5
+    pos = np.arange(sorted_idx.shape[0])
+    print(pos)
+    print(feature_importance[sorted_idx])
+    print(sorted_idx)
     plt.subplot(1, 2, 2)
     plt.barh(pos, feature_importance[sorted_idx], align='center')
-    plt.yticks(pos, model_class.columns[sorted_idx])
-    plt.xlabel('Relative Ismportance')
+    plt.yticks(pos, model_class.columns.ravel()[sorted_idx])
+    plt.xlabel('Relative Importance')
     plt.title('Variable Importance')
     plt.show()
 
-# get_feature_importances(cm)
+get_feature_importances(cm)
 
 # '''
 # Elbow
