@@ -1,22 +1,4 @@
 
-'''
-To Do:
-
-Make ROCs for all models - done
-Make plot of clusters - done
-Average Transaction --> Order Total --> LTV - done
-ASP --> Order Total --> LTV - done
-Make sure generlizable for rest of POS data - done
-Make sure generalizable for other wineries - done
-kNN? -  maybe
-Do a grid search - nah
-
-Profit curve - done
-Calculate Recall, Precision scores for model
-Check F1 scores
-Plots plots plots plots - cluster
-'''
-
 import pandas as pd
 import numpy as np
 from src import format
@@ -39,65 +21,26 @@ import csv
 import random
 import pickle
 
-
 '''
-Clean up data, produce DataFrame
+Clean up data, produce DataFrames
 '''
-# clubs = format.clean_data()
-
-# '''
-# Current Columns
-
-# ['Club', 'Club Status',  'Customer Number', 'Bill Birth Date',       'Bill City', 'Bill State Code', 'Bill Zip', 'Ship Birth Date','Ship City', 'Ship State Code', 'Ship Zip', 'Pickup Location', 'Signup Date', 'Cancel Date','Cancel Reason','Shipments', 'Last Processed Date','Lifetime Value','Last Order Date','City', 'State', 'Zip Code',  'Transactions',  'Last Order Amount', 'Date Added', 'Last Modified Date',      'LTV','Age','isPickup','Club Length','Last Order Date','Time Since Last Order','Quantity','Total', 'ASP',  'Target',  'Quarter Case',  'Half Case',  'Full Case', 'Average Transaction']
-# '''
-
-# filter_cols = ['Club', 'Club Status',  'Customer Number', 'Zip Code',  'Transactions',  'Last Order Amount', 'Date Added', 'Last Modified Date',      'LTV','Age','isPickup','Club Length','Time Since Last Order','Quantity','Total', 'ASP',  'Target',  'Quarter Case',  'Half Case',  'Full Case', 'Average Transaction']
-# clubs = clubs[filter_cols]
-
-# print(clubs.sample(5))
-# print(clubs.shape)
-
-
-'''
-Basic Stats:
-
-Mean Club Length:  1.5738357843137254 
-std club length:  0.8831259196975829
-Cancelled vs. Not Cancelled: 0.642014
-Class balance: 0.500393
-'''
-
 oa = OrderAnalysis()
 oa.clean_data()
 oa.get_order_history()
 oa.merge_tables()
-print("Balance (Positive Class): ",(oa.clubs["Target"].astype(int).sum() / len(oa.clubs)))
-# clubs = oa.bootstrap(oa.clubs)
+
+'''
+Load train, test datasets
+'''
 oa.get_test_train_set(oa.clubs)
 
 clubs_train = pd.read_csv('../train_set.csv')
 clubs_test = pd.read_csv('../test_set.csv')
 
-# prior_orders = oa.merge_tables()
-# prior_orders = prior_orders[['Customer Number','Website Log Price Total Before','POS Log Price Total Before']].reset_index()
-# prior_orders["Prior Orders"] = [(x + y) if not (x=="nan" or y=="nan" or x=="inf" or y=="inf")  else 0 for x,y in zip(prior_orders['Website Log Price Total Before'],prior_orders['POS Log Price Total Before']) ]
-# prior_orders = prior_orders[['Customer Number','Prior Orders']]
-
-
-# clubs_train = clubs_train[~clubs_train["Prior Orders"].isna()]
-# clubs_test = clubs_test[~clubs_test["Prior Orders"].isna()]
-
-print(clubs_test.sample(5))
-
-# # print(prior_orders['Prior Orders'].unique())
-# # print(clubs_train.head())
-
 '''
 Current cols:
 
 cols = ['Customer Number',  'Bill Zip',  'isPickup',  'Club Length',  'Shipments',         'Age',  'Quarter Case',  'Half Case',  'Full Case',  'Quantity',  'Log Spending Per Year',  'POS Log Price Total Before'  ,'Club Log Price Total Before',  'Website Log Price Total Before',  'Number Of Transactions_y'  ,'AverageDaysSince',  'TotalWineBefore',  'OrdersBeforeJoin']
-
-Unsure: 'Log Spending Per Year','AverageDaysSince'
 '''
 
 '''
@@ -116,6 +59,7 @@ print(cm.model.coef_)
 print("Logistic: ",score)
 print(cv_scores)
 print(clubs_test.columns)
+
 
 auc = cm_test.get_roc_curve("Logistic Regression",probas[:,1])
 print("AUC Logistic: ",auc[0])

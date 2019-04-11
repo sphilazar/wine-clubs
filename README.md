@@ -80,8 +80,8 @@ Given this model will ultimately fulfill a business application, of key importan
 
 | Financial Outcome for each Model Prediction | Actual Subscription 2+ Years      | Actual Subscription <2 Years  |
 | :-------------: |:-------------:| :----:|
-| Predicted Subscription 2+ Years   | Incremental shipment revenue* + Cost of intervention^ | Cost of intervention^ |
-| Predicted Subscription <2 Years  | Incremental shipment revenue* | 0 |
+| **Predicted Subscription 2+ Years**   | Incremental shipment revenue* + Cost of intervention^ | Cost of intervention^ |
+| **Predicted Subscription <2 Years**  | Incremental shipment revenue* | 0 |
 
 Note that profit curves rely on the use of soft classifiers, or predicted probabilities that a given subscriber will stay for 2 years. Based on the maximum of the profit curve, we pick the optimal probability threshold for properly classifying each subscriber.
 
@@ -89,6 +89,14 @@ Note that profit curves rely on the use of soft classifiers, or predicted probab
 ###### ^ Negative value, note this cannot be disclosed under NDA
 
 ### Models 
+
+#### Features
+
+To fit all models, I used a variety of features:
+
+```
+['isPickup', 'Age', 'POS Log Price Total Before' ,'Club Log Price Total Before',  'Website Log Price Total Before' ,  'TotalWineBefore', 'OrdersBeforeJoin','ASP','Average Transaction','AverageDaysSince','Log Spending Per Year'] 
+```
 
 #### I. Baseline Model
 
@@ -98,24 +106,12 @@ I will focus on precision as a key metric for the purpose of evaluating competin
 
 #### II. Logistic Regression
 
-A basic model that produces soft classifiers is logistic regression. I fit a logistic regression model using a variety of features:
-
-(TODO)
-
-This logistic regression model leveraged LASSO L1-regularuization to aid in feature selection and interpretability.
-
-The largest coefficients (and therefore most important) included:
-
-(TODO)
-
-The scores of this model were as follows:
+A basic model that produces soft classifiers is logistic regression. This logistic regression model leveraged LASSO L1-regularuization to aid in feature selection and interpretability.
 
 
 #### III. Random Forest Classifier
 
 I then fit a random forest classification model using a variety of features:
-
-The scores of this model were as follows:
 
 | Soft Classifier Model | ROC-AUC Score |
 |:-------------:| :----:|
@@ -130,8 +126,6 @@ Although I will consider precision to be the ultimate indicator of model predict
 I then fit a random forest classification model using a variety of features:
 
 Notably, this model required a low learning rate to perform well.
-
-The scores of this model were as follows:
 
 ### Model Results
 
@@ -155,20 +149,23 @@ The profit curve, leveraging the corresponding confusion matrix at every probabi
 ![alt text](https://github.com/sphilazar/wine-clubs/blob/master/images/Profit_Curve.png "ROC Curves")
 
 
-
-
-
-
 In this case, we see that a probability threshold of 0.51 yields the global maximum for profit.
 
 #### Confusion Matrix for Gradient Boosting Classifier at 0.51 classification threshold for test data
 
 | Test Data | Actual Subscription 2+ Years      | Actual Subscription <2 Years  |
 | :-------------: |:-------------:| :----:|
-| Predicted Subscription 2+ Years   | 46 | 14 |
-| Predicted Subscription <2 Years  | 5 | 29 |
+| **Predicted Subscription 2+ Years**   | 46 | 14 |
+| **Predicted Subscription <2 Years**  | 5 | 29 |
 
-With these outcomes in mind, **our model produces a precision score of 0.77, which is 20 points higher than the 0.57 precision score of our baseline model.**
+With these outcomes in mind, **our model produces a precision score of 0.77, which is 20 points higher than the 0.57 precision score of our baseline model.** Summary of all scores below:
+
+| Gradient Boosting Classifier Scores | Score |
+|:-------------:| :----:|
+| F1 | 0.83 |
+| Recall | 0.90 |
+| **Precision** | **0.77** |
+| Cross-Validated Accuracy | 0.80 |
 
 ### Conclusion
 
