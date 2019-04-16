@@ -5,7 +5,6 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import roc_curve,roc_auc_score
 from  sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
-# from sklearn.preprocessing import StandardScaler
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -20,7 +19,6 @@ class ChurnModel:
     def fit_dumb_model(self,df):
         X = df["Club Length"].values.reshape(-1,1)
         y = df["Target"].values.astype(int)
-        # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
         model = LogisticRegression(solver='lbfgs')
         self.model =  model
         self.model.fit(X,y)
@@ -31,9 +29,6 @@ class ChurnModel:
         '''
         X = df[self.columns].values
         y = df["Target"].values.astype(int)
-        
-
-        # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
         model = LogisticRegression(penalty='l1')
         self.model = model
         self.model.fit(X,y)
@@ -41,14 +36,9 @@ class ChurnModel:
     def fit_random_forest(self,df):
         X = df[self.columns].values
         y = df["Target"].astype(int)
-
-        # X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.20,random_state=16)
-
-        #flip OOB score to true
         rf = RandomForestClassifier()
         self.model = rf
         self.model.fit(X,y)
-
 
     def fit_gradient_boosted_forest(self,df,n_estimators=100,learning_rate=0.2):
         X = df[self.columns].values
@@ -73,8 +63,7 @@ class ChurnModel:
 
     def get_roc_curve(self,label,probabilities,n=100):
 
-        #just in case labels are 1's and 0's
-        self.labels = self.labels.astype(bool)
+        self.labels = self.labels.astype(bool) #just in case labels are 1's and 0's
         auc = roc_auc_score(self.labels,probabilities)
         TPRs = []
         FPRs = []
@@ -84,7 +73,7 @@ class ChurnModel:
             #set threshold boolean mask
             y_predict = probabilities > threshold
 
-            #calculate confusion matrix stuff
+            #calculate confusion matrix
             tp = (y_predict & self.labels).sum()
             fp = (y_predict & ~self.labels).sum()
             tn = (~y_predict & ~self.labels).sum()
@@ -99,10 +88,10 @@ class ChurnModel:
             FPRs.append(fpr)
             Ts.append(threshold)
 
+        plt.figure()
         plt.plot(FPRs,TPRs)
-        # plt.plot(Ts,Ts, 'k--')
+        plt.plot(Ts,Ts, 'k--')
         
-
         return auc,np.array(TPRs), np.array(FPRs), np.array(Ts)
 
 import pickle

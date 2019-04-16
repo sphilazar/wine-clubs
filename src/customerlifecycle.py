@@ -1,4 +1,8 @@
 
+'''
+This script performs all data filtering, aggregation, and sorting needed to produce compatible columns in club_analysis.py
+'''
+
 import pandas as pd
 import numpy as np
 import string
@@ -17,7 +21,10 @@ TODAY_DATE = '04/01/19'
 
 class OrderAnalysis:
     def __init__(self):
-        self.clubs = pd.read_csv(CLUB_PATH)
+        '''
+        init function stores all relevant dataframes needed for analysis
+        '''
+        self.clubs = pd.read_csv(CLUB_PATH) # Master table onto which we merge and filter others to create training and testing sets.
         self.customers = pd.read_csv(CUSTOMER_PATH)
         self.data = pd.read_csv(ORDER_PATH)
 
@@ -53,6 +60,7 @@ class OrderAnalysis:
             Age
         '''
         # Clean Features
+
         self.clubs["LTV"] = [float("".join((ltv[1:].split(","))) ) for ltv in self.clubs["Lifetime Value_x"]]
         self.clubs["Last Order Date"] = self.clubs["Last Order Date_x"]
         self.clubs["Shipments"] = self.clubs["Shipments (note that these don't necessarily mean orders)"]
@@ -62,10 +70,10 @@ class OrderAnalysis:
 
         self.clubs.loc[ (self.clubs["Bill Birth Date"].isna() & ~self.clubs["Ship Birth Date"].isna()) , "Bill Birth Date"] = self.clubs["Ship Birth Date"]
         self.clubs.loc[ (~self.clubs["Bill Birth Date"].isna() & self.clubs["Ship Birth Date"].isna()) , "Ship Birth Date"] = self.clubs["Bill Birth Date"]
-        self.clubs.loc[ (self.clubs["Bill Birth Date"].isna() ),"Bill Birth Date" ] = str(1/1/1966) # Default 50 years old?
+        self.clubs.loc[ (self.clubs["Bill Birth Date"].isna() ),"Bill Birth Date" ] = str(1/1/1966) # Default mean age, 50 years old
         self.clubs["Age"] = [(2019-int("19" + "".join(str(bd[-2:])))) for bd in self.clubs["Bill Birth Date"]]
 
-        # Remove admin entries
+        # Remove administrative entries
         self.clubs.loc[(self.clubs["Age"]==99),"Age"] = self.clubs.loc[~(self.clubs["Age"]==99),"Age"].values.mean()
         self.clubs.loc[self.clubs["Ship City"].isna(),"Ship City"] = "Calistoga"
         self.clubs.loc[self.clubs["Ship State Code"].isna(),"Ship State Code"] = "CA"
@@ -74,16 +82,9 @@ class OrderAnalysis:
         # Create isPickup
         self.clubs["isPickup"] = ~self.clubs["Pickup Location"].isna()
 
-
-
         # Convert dates to time periods (float in years)
-        # clubs["Cancel Date"] = np.array([str(cancel).split("/")[0::2] for cancel in clubs["Cancel Date"]])
-        # clubs["Signup Date"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Signup Date"]]
         self.clubs["Club Length"] = [self.calc_club_length(start,end) if type(end)==str else self.calc_club_length(start,TODAY_DATE) for end,start in zip(self.clubs["Cancel Date"],self.clubs["Signup Date"]) ]
         
-        # self.clubs["Last Order Date"] = [list(str(signup).split("/")[0::2]) for signup in self.clubs["Last Order Date_x"]]
-        # clubs["Last Processed Date"] = [list(str(signup).split("/")[0::2]) for signup in clubs["Last Processed Date"]]
-
         # If Last Order is nan, they have just signed up. Assume 0 Time since last order if new club member
         # Not if "Time Since Last Order" is < 0,  member ordered AFTER cancellation
         self.clubs["Time Since Last Order"] =  [self.calc_club_length(last,end) if ((type(end)==str) & (type(last)==str)) else self.calc_club_length(start,TODAY_DATE) for end,last,start in zip(self.clubs["Cancel Date"],self.clubs["Last Order Date"],self.clubs["Signup Date"]) ]
@@ -93,7 +94,6 @@ class OrderAnalysis:
         self.clubs['Bill Zip'] = [int(str(x)[:5]) if str(x).isnumeric() else 94515 for x in self.clubs['Bill Zip']]
 
         # Average transaction amount
-
         self.clubs["Average Transaction"] = [ x/y if x!=0 else 0 for x,y in zip(self.clubs["LTV"],self.clubs["Number Of Transactions"])]
 
         # Aggregate totals
@@ -103,15 +103,12 @@ class OrderAnalysis:
         customer_orders = customer_orders[customer_orders["Quantity"]!=0]
         customer_orders["ASP"] = customer_orders["Log Price Total"] / customer_orders["Quantity"]
             
-        self.clubs = self.clubs.merge(customer_orders,how="left",left_on="Customer Number",right_on="Customer Number") 
-        # Note there will be NaNs left
+        self.clubs = self.clubs.merge(customer_orders,how="left",left_on="Customer Number",right_on="Customer Number") # Note there will be NaNs left
             
-        # Eliminate NaNs]
+        # Eliminate NaNs
         self.clubs.loc[self.clubs["Quantity"].isna(),"Quantity"] = 0
         self.clubs.loc[self.clubs["Log Price Total"].isna(),"Log Price Total"] = 0
         self.clubs.loc[self.clubs["ASP"].isna(),"ASP"] = 0
-
-
 
     def handle_club_switch(self):
         '''
@@ -146,49 +143,13 @@ class OrderAnalysis:
 
         self.combine_club_customer(cols)
         self.clean_features()
-
-        # # Rename some columns
-        # self.clubs.columns = ['Club', 'Club Status', 'Customer Number', 'Bill Birth Date', 'Bill City', 'Bill State Code', 'Bill Zip', 'Ship Birth Date', 'Ship City', 'Ship State Code', 'Ship Zip', 'Pickup Location', 'Signup Date', 'Cancel Date', 'Cancel Reason', "Shipments", 'Last Processed Date', 'Lifetime Value', 'Last Order Date', 'City', 'State', 'Zip Code', 'Transactions', 'Last Order Amount', 'Date Added', 'Last Modified Date', 'LTV', 'Age', 'isPickup', 'Club Length', 'Last Order Date', 'Time Since Last Order', 'Quantity', 'Total', 'ASP']
-
         self.handle_club_switch()
-
         self.make_target()
 
         # One hot encode membership tiers
         self.one_hot()
 
-        # # Basic stats -  delete
-        # mean = self.[self.['Club Status']=='Cancelled']['Club Length'].mean()
-        # std = np.sqrt( self.[self.['Club Status']=='Cancelled']['Club Length'].var() )
-        # print("Mean CLub Length: ",mean,"std club length: ",std)
-        # left = self.[self.['Club Status']=="Cancelled"].count()
-        # total = self..shape[0]
-        # class_cancelled = left/total
-        # print("Class balance of cancelled: ",class_cancelled)
-
-        # length = self.clubs[self.clubs['Club Length']>=2].count()
-        # length_portion = length/total
-        # print("Class balance of long memberships: ",length_portion)
-
-        # ROC curve, AUC better classifier
         return self.clubs
-
-    def bootstrap(self,df):
-        '''
-        This function takes in a DataFrame, counts total membership in each class by finding all indices of each class and balances out each class if necessary by randomly picking an index belonging to that class.
-        Returns a dataframe containing all the original data plus bootstrapped data per the method above.
-        '''
-
-        below_target = list(np.argwhere(~df["Target"]).ravel())
-        above_target = list(np.argwhere(df["Target"]).ravel())
-
-        while np.abs( len(below_target) - len(above_target) ) >= 2:
-            if len(below_target) < len(above_target):
-                below_target.append(np.random.choice(np.array(below_target),replace=True))
-            else:
-                above_target.append(np.random.choice(np.array(above_target),replace=True))
-
-        return df.iloc[above_target + below_target]
 
     def calc_club_length(self,d1,d2):
         '''
@@ -261,6 +222,7 @@ class OrderAnalysis:
                 avg_days_since = (total_days / (total_count -1))
                 self.data.loc[((self.data.index >= end) & (self.data.index <= start)),"AverageDaysSince"] = avg_days_since
 
+                # Insert calculated totals only for current customer
                 cust_index = self.customers[self.customers["Customer No."]==customer].index
                 self.customers.loc[cust_index,"AverageDaysSince"] = avg_days_since
                 self.customers.loc[cust_index,"TotalWineBefore"] = total_wine
@@ -274,9 +236,8 @@ class OrderAnalysis:
         return (((d2 - d1).days) >= 0)
 
     def merge_tables(self):
-        # self.data = self.data.reset_index()
 
-        # Create aggregate tables - check tables.
+        # Create tables with aggregate orders metrics
         orders_agg = self.data.groupby("Customer Number").sum().reset_index()[['Customer Number',"Quantity","Log Price Total"]]
         orders_count = self.data.groupby(["Customer Number","OrderCompletedDate"]).count().reset_index().groupby(['Customer Number']).count().reset_index()[['Customer Number','OrderCompletedDate']]
         orders_by_type = self.data.groupby(["Customer Number","ordertype"]).sum().reset_index()
@@ -284,6 +245,7 @@ class OrderAnalysis:
         first_order_dates.columns = ["Customer Number",'Earliest Order Date']
         first_order_dates["Earliest Order Date"] = [list(str(date).split("-")[1::-1]) for date in first_order_dates["Earliest Order Date"]]
 
+        #  Filter aggregate tables by order category
         POStotal = orders_by_type[orders_by_type["ordertype"]=='POS'][['Customer Number','Log Price Total']]
         POStotal.columns = ['Customer Number','POS Log Price Total']
         clubtotal = orders_by_type[orders_by_type["ordertype"]=='ClubOrder'][['Customer Number','Log Price Total']]
@@ -291,8 +253,7 @@ class OrderAnalysis:
         websitetotal = orders_by_type[orders_by_type["ordertype"]=='Website'][['Customer Number','Log Price Total']]
         websitetotal.columns = ['Customer Number','Website Log Price Total']
 
-        orders_by_type['Reservations'] = (orders_by_type["ordertype"]=="Reservation")
-
+        # Merge aggregate tables onto clubs table
         self.clubs = self.clubs.merge(orders_agg,how="left",left_on="Customer Number",right_on="Customer Number")
         self.clubs = self.clubs.merge(orders_count,how="left",left_on="Customer Number",right_on="Customer Number")
 
@@ -350,12 +311,16 @@ class OrderAnalysis:
 
         self.clubs = self.clubs.merge(self.customers[['Customer No.','AverageDaysSince','TotalWineBefore','OrdersBeforeJoin']],how="left",left_on="Customer Number",right_on="Customer No.")
 
+        # Filter columns going into training set and testing set
         cols = ['Customer Number', 'Bill Zip',  'isPickup',  'Club Length',  'Shipments' , 'Age' , 'Quarter Case',  'Half Case',  'Full Case',  'Target','Quantity_x','Log Spending Per Year' , 'POS Log Price Total Before',  'Club Log Price Total Before',  'Website Log Price Total Before','Number Of Transactions_y','AverageDaysSince','TotalWineBefore','OrdersBeforeJoin','ASP','Average Transaction']
         self.clubs = self.clubs[cols]
         self.clubs = self.clubs.fillna(0)
         return self.clubs
 
     def get_test_train_set(self,df):
+        '''
+        This function splits the given dataframe df into a training set and a test set based on randomly  assigned indices
+        '''
         a = np.array(df.index.tolist())
         random.shuffle(a)
 
